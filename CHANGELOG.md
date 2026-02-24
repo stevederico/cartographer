@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+  Default to codebase scan with no args
+
 ## 1.0.2
 
   Update README agent-agnostic

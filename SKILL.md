@@ -24,7 +24,7 @@ Follow these steps in order:
 
 ### Step 1: Gather Information
 
-If the user provides a description, use it directly. If they say "from codebase", "from this project", or similar, scan the project to discover architecture:
+If the user provides a description, use it directly. If no arguments are provided, or the user says "from codebase", "from this project", or similar, scan the current project to discover architecture:
 
 - Read `package.json`, `docker-compose.yml`, `Dockerfile`, `Makefile`, `Procfile`
 - Use `Glob` to find API route files (`**/routes/**`, `**/api/**`, `**/*.controller.*`)
