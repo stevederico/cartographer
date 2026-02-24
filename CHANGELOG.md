@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0
+
+  Fit diagram to viewport dynamically
+  Start particles with edges immediately
+  Respond to window resize
+
 ## 1.0.3
 
   Default to codebase scan with no args

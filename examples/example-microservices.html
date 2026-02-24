@@ -914,14 +914,13 @@
         }
       });
 
-      const edgeFinishDelay = edgeStartDelay + pathObjs.length * 250 + 1800;
-
-      /* 4. Particles start after edges finish */
+      /* 4. Particles start immediately with edges */
       setTimeout(() => {
         spawnParticles();
-      }, edgeFinishDelay);
+      }, edgeStartDelay);
 
-      /* 5. Pulse glow on nodes after everything settles */
+      /* 5. Pulse glow on nodes after edges finish drawing */
+      const edgeFinishDelay = edgeStartDelay + pathObjs.length * 250 + 1800;
       setTimeout(() => {
         allNodes.forEach(el => { el.classList.add('is-pulsing'); });
       }, edgeFinishDelay + 500);
@@ -1223,24 +1222,26 @@
     function fitToViewport() {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
+      const FIT_PADDING = 80;
 
-      /* Calculate bounding box of all nodes */
-      let maxX = 0, maxY = 0;
+      /* Calculate true bounding box of all nodes */
+      let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
       nodes.forEach(n => {
         const p = positions[n.id];
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
         if (p.x + NODE_WIDTH > maxX) maxX = p.x + NODE_WIDTH;
         if (p.y + NODE_HEIGHT > maxY) maxY = p.y + NODE_HEIGHT;
       });
-      maxX += PADDING;
-      maxY += PADDING;
 
-      const sx = vw / maxX;
-      const sy = vh / maxY;
-      scale = Math.min(sx, sy, 1.2);
+      const contentW = maxX - minX + FIT_PADDING * 2;
+      const contentH = maxY - minY + FIT_PADDING * 2;
+
+      scale = Math.min(vw / contentW, vh / contentH);
       scale = Math.max(0.3, Math.min(scale, 3.0));
 
-      panX = (vw - maxX * scale) / 2;
-      panY = (vh - maxY * scale) / 2;
+      panX = (vw - contentW * scale) / 2 - (minX - FIT_PADDING) * scale;
+      panY = (vh - contentH * scale) / 2 - (minY - FIT_PADDING) * scale;
       applyTransform();
     }
 

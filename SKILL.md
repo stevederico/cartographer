@@ -496,8 +496,8 @@ const PULSE_DURATION          = 4000;  // ms
 
 1. **t=0** — Groups fade in (800ms)
 2. **t=800** — Nodes stagger in (node_i at `800 + i * 150` ms)
-3. **t=800+n*150** — Edges draw (edge_i at `groups_done + nodes_done + i * 250` ms)
-4. **t=edges_done** — Particles start flowing; active nodes begin pulsing
+3. **t=nodes_done** — Edges draw and particles start simultaneously
+4. **t=edges_done** — Active nodes begin pulsing
 
 ---
 
@@ -707,10 +707,33 @@ function applyTransform() {
   diagram.style.transform = `translate(${originX}px, ${originY}px) scale(${scale})`;
 }
 
-function resetTransform() {
-  scale = 1;
-  originX = (viewport.clientWidth  - diagram.offsetWidth)  / 2;
-  originY = (viewport.clientHeight - diagram.offsetHeight) / 2;
+/**
+ * Scales and centers the diagram to fill the viewport.
+ * Computes the true bounding box of all .node elements, then applies
+ * a uniform scale with padding so content fills the available space.
+ */
+function fitToViewport() {
+  const FIT_PADDING = 80;
+  const vw = viewport.clientWidth;
+  const vh = viewport.clientHeight;
+  const nodeEls = diagram.querySelectorAll('.node');
+  let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
+  nodeEls.forEach(el => {
+    const x = parseFloat(el.style.left);
+    const y = parseFloat(el.style.top);
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x + w > maxX) maxX = x + w;
+    if (y + h > maxY) maxY = y + h;
+  });
+  const contentW = maxX - minX + FIT_PADDING * 2;
+  const contentH = maxY - minY + FIT_PADDING * 2;
+  scale = Math.min(vw / contentW, vh / contentH);
+  scale = Math.max(MIN_SCALE, Math.min(scale, MAX_SCALE));
+  originX = (vw - contentW * scale) / 2 - (minX - FIT_PADDING) * scale;
+  originY = (vh - contentH * scale) / 2 - (minY - FIT_PADDING) * scale;
   applyTransform();
 }
 
@@ -751,8 +774,9 @@ window.addEventListener('mouseup', () => {
 ### 5. Double-Click Reset
 
 ```js
-viewport.addEventListener('dblclick', resetTransform);
-resetTransform(); // Initialize centered on load
+viewport.addEventListener('dblclick', fitToViewport);
+fitToViewport(); // Scale to fill viewport on load
+window.addEventListener('resize', fitToViewport);
 ```
 
 ---
@@ -974,10 +998,11 @@ function routeEdge(edge, positions, allEdges, flow = 'horizontal', layout = LAYO
 
 #### 6. Viewport Fitting
 
-After computing all positions, normalize so the diagram is centered within the viewport:
-1. Find the bounding box of all node positions and group bounds
-2. Compute uniform scale to fit within viewport with 40px padding
-3. Center the scaled content
+After computing all positions, the `fitToViewport()` function dynamically scales and centers the diagram:
+1. Find the true bounding box (minX/minY/maxX/maxY) of all node positions
+2. Compute uniform scale so content fills the viewport with 80px padding
+3. Translate so the content is centered — accounts for content offset from origin
+4. Responds to window resize events
 
 ---
 
@@ -2252,8 +2277,6 @@ Below is a COMPLETE, working HTML file for a 3-node diagram: **Web App -> API Se
     particleContainer.style.zIndex = '20';
     diagram.appendChild(particleContainer);
 
-    const allEdgesFinishTime = nodesFinishTime + edges.length * EDGE_STAGGER + EDGE_DRAW_DURATION;
-
     edges.forEach((edge, i) => {
       const pathEl = pathObjs[i]?.path;
       if (!pathEl) return;
@@ -2273,7 +2296,7 @@ Below is a COMPLETE, working HTML file for a 3-node diagram: **Web App -> API Se
           dot.style.offsetPath = `path('${pathData}')`;
           particleContainer.appendChild(dot);
         }
-      }, allEdgesFinishTime);
+      }, nodesFinishTime);
     });
 
     // =============================================
@@ -2417,10 +2440,28 @@ Below is a COMPLETE, working HTML file for a 3-node diagram: **Web App -> API Se
       diagram.style.transform = `translate(${oX}px, ${oY}px) scale(${scale})`;
     }
 
-    function resetTransform() {
-      scale = 1;
-      oX = (viewport.clientWidth  - diagram.offsetWidth)  / 2;
-      oY = (viewport.clientHeight - diagram.offsetHeight) / 2;
+    function fitToViewport() {
+      const FIT_PADDING = 80;
+      const vw = viewport.clientWidth;
+      const vh = viewport.clientHeight;
+      const nodeEls = diagram.querySelectorAll('.node');
+      let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
+      nodeEls.forEach(el => {
+        const x = parseFloat(el.style.left);
+        const y = parseFloat(el.style.top);
+        const w = el.offsetWidth;
+        const h = el.offsetHeight;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x + w > maxX) maxX = x + w;
+        if (y + h > maxY) maxY = y + h;
+      });
+      const contentW = maxX - minX + FIT_PADDING * 2;
+      const contentH = maxY - minY + FIT_PADDING * 2;
+      scale = Math.min(vw / contentW, vh / contentH);
+      scale = Math.max(MIN_SCALE, Math.min(scale, MAX_SCALE));
+      oX = (vw - contentW * scale) / 2 - (minX - FIT_PADDING) * scale;
+      oY = (vh - contentH * scale) / 2 - (minY - FIT_PADDING) * scale;
       applyTransform();
     }
 
@@ -2459,10 +2500,11 @@ Below is a COMPLETE, working HTML file for a 3-node diagram: **Web App -> API Se
       viewport.classList.remove('is-panning');
     });
 
-    viewport.addEventListener('dblclick', resetTransform);
+    viewport.addEventListener('dblclick', fitToViewport);
+    window.addEventListener('resize', fitToViewport);
 
-    // Initialize centered
-    resetTransform();
+    // Scale to fill viewport on load
+    fitToViewport();
   </script>
 </body>
 </html>
