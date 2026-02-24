@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Commerce Microservices Architecture</title>
+  <style>
+    :root {
+      --bg: #0a0a12;
+      --bg-grid: rgba(255,255,255,0.03);
+      --node-bg: rgba(255,255,255,0.05);
+      --node-border: rgba(255,255,255,0.12);
+      --node-text: #e2e8f0;
+      --node-sub: #94a3b8;
+      --edge-primary: #6366f1;
+      --edge-secondary: #06b6d4;
+      --edge-async: #f59e0b;
+      --edge-error: #ef4444;
+      --glow-primary: drop-shadow(0 0 8px #6366f1) drop-shadow(0 0 24px rgba(99,102,241,0.3));
+    }
+
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--node-text);
+    }
+
+    /* Dot-grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-image: radial-gradient(circle, var(--bg-grid) 1px, transparent 1px);
+      background-size: 24px 24px;
+      pointer-events: none;
+    }
+
+    .diagram {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      cursor: grab;
+    }
+
+    .diagram.is-panning {
+      cursor: grabbing;
+    }
+
+    .diagram-title {
+      position: absolute;
+      top: 24px;
+      left: 32px;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--node-text);
+      z-index: 100;
+      pointer-events: none;
+      letter-spacing: -0.3px;
+    }
+
+    .diagram-subtitle {
+      position: absolute;
+      top: 52px;
+      left: 32px;
+      font-size: 13px;
+      color: var(--node-sub);
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .diagram-viewport {
+      position: absolute;
+      inset: 0;
+      transform-origin: 0 0;
+    }
+
+    /* Edge SVG layer */
+    .edge-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+      overflow: visible;
+    }
+
+    .edge-layer path {
+      fill: none;
+      stroke-linecap: round;
+      pointer-events: none;
+    }
+
+    .edge-layer path.edge-hitarea {
+      display: none;
+    }
+
+    /* Node layer */
+    .node-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      pointer-events: none;
+    }
+
+    /* Particle layer */
+    .particle-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    /* --- Group --- */
+    .group {
+      position: absolute;
+      border: 1.5px dashed rgba(255,255,255,0.1);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.02);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .group-label {
+      position: absolute;
+      top: -10px;
+      left: 16px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--node-sub);
+      background: var(--bg);
+      padding: 0 8px;
+    }
+
+    @keyframes groupFadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    .group.is-visible {
+      animation: groupFadeIn 0.8s ease-out forwards;
+    }
+
+    /* --- Node base --- */
+    .node {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 20px;
+      background: var(--node-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--node-border);
+      border-radius: 12px;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: auto;
+      transition: opacity 0.3s, filter 0.3s, transform 0.15s;
+      user-select: none;
+    }
+
+    .node:hover {
+      transform: translateY(-2px);
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .node.is-visible {
+      animation: fadeInUp 1s ease-out both;
+    }
+
+    /* Node shapes */
+    .node--stadium {
+      border-radius: 999px;
+    }
+
+    .node--circle {
+      border-radius: 50%;
+    }
+
+    .node--cylinder {
+      border-radius: 4px;
+      overflow: visible;
+    }
+
+    .node--cylinder::before,
+    .node--cylinder::after {
+      content: '';
+      position: absolute;
+      left: -1px;
+      right: -1px;
+      height: 14px;
+      border: 1px solid var(--node-border);
+      background: var(--node-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .node--cylinder::before {
+      top: -7px;
+      border-radius: 50% / 100%;
+      z-index: 1;
+    }
+
+    .node--cylinder::after {
+      bottom: -7px;
+      border-radius: 50% / 100%;
+      z-index: -1;
+    }
+
+    .node-icon {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .node-icon svg {
+      width: 24px;
+      height: 24px;
+      stroke: var(--node-text);
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .node-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .node-label {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--node-text);
+    }
+
+    .node-subtitle {
+      font-size: 11px;
+      color: var(--node-sub);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Pulse glow */
+    @keyframes pulse {
+      0%, 100% { filter: drop-shadow(0 0 4px var(--edge-primary)); }
+      50%      { filter: drop-shadow(0 0 12px var(--edge-primary)) drop-shadow(0 0 24px rgba(99,102,241,0.3)); }
+    }
+
+    .node.is-pulsing {
+      opacity: 1;
+      animation: pulse 4s ease-in-out infinite;
+    }
+
+    /* Dimming for hover highlight */
+    .node.is-dimmed {
+      opacity: 0.15 !important;
+      filter: none !important;
+      transition: opacity 0.3s;
+    }
+
+    .node.is-highlighted {
+      opacity: 1 !important;
+      transition: opacity 0.3s;
+    }
+
+    .edge-layer path.is-dimmed {
+      opacity: 0.1;
+      transition: opacity 0.3s;
+    }
+
+    /* --- Tooltip --- */
+    .tooltip {
+      position: fixed;
+      z-index: 200;
+      max-width: 340px;
+      padding: 14px 16px;
+      background: rgba(15, 15, 30, 0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--node-text);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    .tooltip.is-active {
+      opacity: 1;
+    }
+
+    .tooltip-title {
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--node-sub);
+    }
+
+    .tooltip-row span:last-child {
+      color: var(--node-text);
+      font-weight: 500;
+    }
+
+    .tooltip-method {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      letter-spacing: 0.03em;
+      margin-right: 6px;
+    }
+    .tooltip-method--get    { background: rgba(6,182,212,0.2); color: #06b6d4; }
+    .tooltip-method--post   { background: rgba(99,102,241,0.2); color: #818cf8; }
+    .tooltip-method--select { background: rgba(6,182,212,0.2); color: #06b6d4; }
+    .tooltip-method--insert { background: rgba(168,85,247,0.2); color: #c084fc; }
+    .tooltip-method--publish{ background: rgba(245,158,11,0.2); color: #f59e0b; }
+
+    .tooltip-endpoint {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px;
+      color: #fff;
+    }
+
+    .tooltip-data {
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: rgba(0,0,0,0.4);
+      border-radius: 6px;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .tooltip-data-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--node-sub);
+      margin-bottom: 2px;
+    }
+
+    .tooltip-data-value {
+      color: #a5b4fc;
+      word-break: break-all;
+    }
+
+    .tooltip-data-response {
+      color: #6ee7b7;
+    }
+
+    .tooltip-arrow-icon {
+      display: inline-block;
+      margin: 4px 0;
+      color: var(--node-sub);
+      font-size: 10px;
+    }
+
+    /* --- Legend --- */
+    .legend {
+      position: absolute;
+      bottom: 24px;
+      right: 32px;
+      z-index: 100;
+      display: flex;
+      gap: 20px;
+      font-size: 11px;
+      color: var(--node-sub);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-line {
+      width: 24px;
+      height: 2px;
+      border-radius: 1px;
+    }
+
+    .legend-line--sync { background: var(--edge-primary); }
+    .legend-line--secondary { background: var(--edge-secondary); }
+    .legend-line--async {
+      background: repeating-linear-gradient(90deg, var(--edge-async) 0 6px, transparent 6px 10px);
+    }
+
+    /* Particle dot */
+    .particle {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    .particle.is-active {
+      opacity: 1;
+    }
+
+    @keyframes particleTravel {
+      from { offset-distance: 0%; }
+      to   { offset-distance: 100%; }
+    }
+
+    /* --- Print --- */
+    @media print {
+      :root {
+        --bg: #fff;
+        --node-bg: #fff;
+        --node-border: #ccc;
+        --node-text: #111;
+        --node-sub: #666;
+      }
+
+      body::before { display: none; }
+
+      body {
+        background: #fff;
+        color: #111;
+      }
+
+      .node {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        border: 1px solid #ccc;
+        animation: none !important;
+        opacity: 1 !important;
+      }
+
+      .node--cylinder::before,
+      .node--cylinder::after {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        background: #fff;
+        border-color: #ccc;
+      }
+
+      .group {
+        border-color: #ccc;
+        background: rgba(0,0,0,0.02);
+        opacity: 1 !important;
+        animation: none !important;
+      }
+
+      .particle-layer { display: none; }
+      .tooltip { display: none; }
+
+      .node.is-pulsing { animation: none !important; filter: none !important; }
+    }
+
+    /* --- Responsive --- */
+    @media (max-width: 768px) {
+      .diagram-title { font-size: 17px; left: 16px; top: 16px; }
+      .diagram-subtitle { font-size: 11px; left: 16px; top: 38px; }
+      .legend { bottom: 12px; right: 12px; gap: 12px; font-size: 10px; }
+      .node-label { font-size: 12px; }
+      .node-subtitle { font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="diagram" class="diagram">
+    <h1 class="diagram-title">E-Commerce Microservices</h1>
+    <p class="diagram-subtitle">Service architecture with data flow</p>
+
+    <div id="viewport" class="diagram-viewport">
+      <svg id="edges" class="edge-layer">
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+          <marker id="arrow-primary" viewBox="0 0 10 8" refX="10" refY="4" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 4 L0 8 z" fill="var(--edge-primary)"/>
+          </marker>
+          <marker id="arrow-secondary" viewBox="0 0 10 8" refX="10" refY="4" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 4 L0 8 z" fill="var(--edge-secondary)"/>
+          </marker>
+          <marker id="arrow-async" viewBox="0 0 10 8" refX="10" refY="4" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 4 L0 8 z" fill="var(--edge-async)"/>
+          </marker>
+        </defs>
+      </svg>
+
+      <div id="nodes" class="node-layer"></div>
+      <svg id="particles" class="particle-layer"></svg>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item">
+        <span class="legend-line legend-line--sync"></span>
+        <span>Sync (REST)</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-line legend-line--secondary"></span>
+        <span>Sync (SQL/Cache)</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-line legend-line--async"></span>
+        <span>Async (pub/sub)</span>
+      </div>
+    </div>
+
+    <div id="tooltip" class="tooltip"></div>
+  </div>
+
+  <script>
+    /* ========================================================================
+     * Data definitions
+     * ====================================================================== */
+
+    const ICONS = {
+      layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
+      user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+      server: '<rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>',
+      box: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+      database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
+      'refresh-cw': '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>'
+    };
+
+    const nodes = [
+      { id: 'api-gateway',      label: 'API Gateway',      icon: 'layers',     shape: 'stadium',      subtitle: 'Nginx / Port 443',    tech: 'Nginx',     desc: 'Entry point for all client requests. Handles routing, rate limiting, and TLS termination.', port: '443' },
+      { id: 'user-service',     label: 'User Service',     icon: 'user',       shape: 'rounded-rect', subtitle: 'Node.js / Port 3001', tech: 'Node.js',   desc: 'Manages user accounts, authentication, and profile data.', port: '3001' },
+      { id: 'product-service',  label: 'Product Service',  icon: 'server',     shape: 'rounded-rect', subtitle: 'Node.js / Port 3002', tech: 'Node.js',   desc: 'Handles product catalog, inventory, and search.', port: '3002' },
+      { id: 'order-service',    label: 'Order Service',    icon: 'box',        shape: 'rounded-rect', subtitle: 'Node.js / Port 3003', tech: 'Node.js',   desc: 'Processes orders, payments, and fulfillment workflows.', port: '3003' },
+      { id: 'postgresql',       label: 'PostgreSQL',       icon: 'database',   shape: 'cylinder',     subtitle: 'Port 5432',           tech: 'PostgreSQL', desc: 'Primary relational database for persistent storage.', port: '5432' },
+      { id: 'redis-cache',      label: 'Redis Cache',      icon: 'refresh-cw', shape: 'rounded-rect', subtitle: 'Port 6379',           tech: 'Redis',     desc: 'In-memory cache and pub/sub message broker.', port: '6379' }
+    ];
+
+    const edges = [
+      { from: 'api-gateway', to: 'user-service',    type: 'sync',  label: 'REST/JSON',  color: 'primary',
+        method: 'POST', endpoint: '/api/users',
+        request:  '{ email, name, password }',
+        response: '{ id, token, createdAt }' },
+      { from: 'api-gateway', to: 'product-service',  type: 'sync',  label: 'REST/JSON',  color: 'primary',
+        method: 'GET', endpoint: '/api/products',
+        request:  '?category=electronics&limit=20',
+        response: '{ products[], total, page }' },
+      { from: 'api-gateway', to: 'order-service',    type: 'sync',  label: 'REST/JSON',  color: 'primary',
+        method: 'POST', endpoint: '/api/orders',
+        request:  '{ userId, items[], shippingAddr }',
+        response: '{ orderId, status, estimatedDelivery }' },
+      { from: 'user-service', to: 'postgresql',      type: 'sync',  label: 'SQL',        color: 'secondary',
+        method: 'INSERT', endpoint: 'users',
+        request:  'INSERT INTO users (email, name, hash)',
+        response: 'RETURNING id, created_at' },
+      { from: 'product-service', to: 'postgresql',   type: 'sync',  label: 'SQL',        color: 'secondary',
+        method: 'SELECT', endpoint: 'products',
+        request:  'SELECT * FROM products WHERE category = $1',
+        response: 'rows[]: { id, name, price, stock }' },
+      { from: 'order-service', to: 'postgresql',     type: 'sync',  label: 'SQL',        color: 'secondary',
+        method: 'INSERT', endpoint: 'orders',
+        request:  'INSERT INTO orders (user_id, total, status)',
+        response: 'RETURNING id, status, created_at' },
+      { from: 'order-service', to: 'redis-cache',    type: 'async', label: 'pub/sub',    color: 'async',
+        method: 'PUBLISH', endpoint: 'order:created',
+        request:  '{ orderId, userId, items[], total }',
+        response: '(fire-and-forget)' },
+      { from: 'product-service', to: 'redis-cache',  type: 'sync',  label: 'cache read', color: 'secondary',
+        method: 'GET', endpoint: 'products:electronics',
+        request:  'GET products:electronics',
+        response: '{ products[], ttl: 300s }' }
+    ];
+
+    const groups = [
+      { id: 'backend-services', label: 'Backend Services', members: ['user-service', 'product-service', 'order-service'] }
+    ];
+
+    /* ========================================================================
+     * Layout constants
+     * ====================================================================== */
+
+    const NODE_WIDTH = 180;
+    const NODE_HEIGHT = 80;
+    const LAYER_GAP = 200;
+    const NODE_GAP = 40;
+    const PADDING = 60;
+
+    /* ========================================================================
+     * Auto-layout: topological sort + layer assignment
+     * ====================================================================== */
+
+    /**
+     * Builds an adjacency map from a list of edges.
+     * @param {Array} edgeList - edges with from/to properties
+     * @returns {Object} adjacency - map of nodeId to array of target nodeIds
+     */
+    function buildAdjacency(edgeList) {
+      const adj = {};
+      const inDeg = {};
+      nodes.forEach(n => { adj[n.id] = []; inDeg[n.id] = 0; });
+      edgeList.forEach(e => {
+        adj[e.from].push(e.to);
+        inDeg[e.to]++;
+      });
+      return { adj, inDeg };
+    }
+
+    /**
+     * Topological sort via Kahn's algorithm.
+     * @param {Object} adj - adjacency map
+     * @param {Object} inDeg - in-degree counts
+     * @returns {Array} sorted node IDs
+     */
+    function topoSort(adj, inDeg) {
+      const queue = [];
+      const result = [];
+      const deg = { ...inDeg };
+      Object.keys(deg).forEach(id => { if (deg[id] === 0) queue.push(id); });
+      while (queue.length) {
+        const node = queue.shift();
+        result.push(node);
+        adj[node].forEach(t => {
+          deg[t]--;
+          if (deg[t] === 0) queue.push(t);
+        });
+      }
+      return result;
+    }
+
+    /**
+     * Assigns layers by longest path from source nodes.
+     * @param {Array} sorted - topologically sorted node IDs
+     * @param {Object} adj - adjacency map
+     * @returns {Object} map of nodeId to layer index
+     */
+    function assignLayers(sorted, adj) {
+      const layer = {};
+      sorted.forEach(id => { layer[id] = 0; });
+      sorted.forEach(id => {
+        adj[id].forEach(t => {
+          layer[t] = Math.max(layer[t], layer[id] + 1);
+        });
+      });
+      return layer;
+    }
+
+    /**
+     * Computes x,y positions for all nodes and fits to viewport.
+     * @returns {Object} map of nodeId to {x, y}
+     */
+    function computeLayout() {
+      const { adj, inDeg } = buildAdjacency(edges);
+      const sorted = topoSort(adj, inDeg);
+      const layerMap = assignLayers(sorted, adj);
+
+      /* Group nodes by layer */
+      const layerBuckets = {};
+      Object.entries(layerMap).forEach(([id, l]) => {
+        if (!layerBuckets[l]) layerBuckets[l] = [];
+        layerBuckets[l].push(id);
+      });
+
+      const maxLayer = Math.max(...Object.values(layerMap));
+      const positions = {};
+
+      Object.entries(layerBuckets).forEach(([l, ids]) => {
+        const layer = parseInt(l);
+        const count = ids.length;
+        const totalHeight = count * NODE_HEIGHT + (count - 1) * NODE_GAP;
+        const x = PADDING + layer * (NODE_WIDTH + LAYER_GAP);
+        ids.forEach((id, i) => {
+          const y = PADDING + i * (NODE_HEIGHT + NODE_GAP);
+          positions[id] = { x, y };
+        });
+      });
+
+      /* Center each layer vertically relative to the tallest layer */
+      let maxTotalHeight = 0;
+      Object.values(layerBuckets).forEach(ids => {
+        const h = ids.length * NODE_HEIGHT + (ids.length - 1) * NODE_GAP;
+        if (h > maxTotalHeight) maxTotalHeight = h;
+      });
+
+      Object.entries(layerBuckets).forEach(([l, ids]) => {
+        const totalHeight = ids.length * NODE_HEIGHT + (ids.length - 1) * NODE_GAP;
+        const offset = (maxTotalHeight - totalHeight) / 2;
+        ids.forEach(id => { positions[id].y += offset; });
+      });
+
+      return positions;
+    }
+
+    /* ========================================================================
+     * Rendering
+     * ====================================================================== */
+
+    const positions = computeLayout();
+    const nodeMap = {};
+    nodes.forEach(n => { nodeMap[n.id] = n; });
+
+    /** Lookup map for quick access to node elements by id */
+    const nodeElements = {};
+
+    /**
+     * Creates the inline SVG markup for a given icon name.
+     * @param {string} name - icon identifier from ICONS map
+     * @returns {string} SVG markup string
+     */
+    function iconSVG(name) {
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">${ICONS[name]}</svg>`;
+    }
+
+    /**
+     * Renders all groups into the node layer.
+     */
+    function renderGroups() {
+      const nodeLayer = document.getElementById('nodes');
+      groups.forEach(g => {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        g.members.forEach(id => {
+          const p = positions[id];
+          if (p.x < minX) minX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.x + NODE_WIDTH > maxX) maxX = p.x + NODE_WIDTH;
+          if (p.y + NODE_HEIGHT > maxY) maxY = p.y + NODE_HEIGHT;
+        });
+        const pad = 24;
+        const div = document.createElement('div');
+        div.className = 'group';
+        div.id = 'group-' + g.id;
+        div.style.left = (minX - pad) + 'px';
+        div.style.top = (minY - pad) + 'px';
+        div.style.width = (maxX - minX + pad * 2) + 'px';
+        div.style.height = (maxY - minY + pad * 2) + 'px';
+        div.innerHTML = `<span class="group-label">${g.label}</span>`;
+        nodeLayer.appendChild(div);
+      });
+    }
+
+    /**
+     * Renders all node elements positioned absolutely.
+     */
+    function renderNodes() {
+      const nodeLayer = document.getElementById('nodes');
+      nodes.forEach((n, i) => {
+        const pos = positions[n.id];
+        const shapeClass = n.shape === 'stadium' ? 'node--stadium' :
+                           n.shape === 'cylinder' ? 'node--cylinder' :
+                           n.shape === 'circle'   ? 'node--circle' : '';
+        const div = document.createElement('div');
+        div.className = `node ${shapeClass}`.trim();
+        div.id = 'node-' + n.id;
+        div.dataset.nodeId = n.id;
+        div.style.left = pos.x + 'px';
+        div.style.top = pos.y + 'px';
+        div.style.width = NODE_WIDTH + 'px';
+        div.style.height = NODE_HEIGHT + 'px';
+        div.innerHTML = `
+          <div class="node-icon">${iconSVG(n.icon)}</div>
+          <div class="node-info">
+            <div class="node-label">${n.label}</div>
+            <div class="node-subtitle">${n.subtitle}</div>
+          </div>`;
+        nodeLayer.appendChild(div);
+        nodeElements[n.id] = div;
+      });
+    }
+
+    /**
+     * Renders edge SVG paths with cubic bezier curves.
+     * @returns {Array} array of {path, edge} objects for animation
+     */
+    function renderEdges() {
+      const svg = document.getElementById('edges');
+      const pathObjs = [];
+
+      edges.forEach((e, i) => {
+        const from = positions[e.from];
+        const to = positions[e.to];
+
+        const x1 = from.x + NODE_WIDTH;
+        const y1 = from.y + NODE_HEIGHT / 2;
+        const x2 = to.x;
+        const y2 = to.y + NODE_HEIGHT / 2;
+
+        const dx = x2 - x1;
+        const cx1 = x1 + dx * 0.4;
+        const cy1 = y1;
+        const cx2 = x1 + dx * 0.6;
+        const cy2 = y2;
+
+        const d = `M${x1},${y1} C${cx1},${cy1} ${cx2},${cy2} ${x2},${y2}`;
+
+        const colorVar = e.color === 'primary' ? 'var(--edge-primary)' :
+                         e.color === 'secondary' ? 'var(--edge-secondary)' :
+                         e.color === 'async' ? 'var(--edge-async)' :
+                         'var(--edge-error)';
+
+        const markerEnd = `url(#arrow-${e.color === 'async' ? 'async' : e.color})`;
+
+        /* Invisible wide hit-area for easier hover */
+        const hitArea = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        hitArea.setAttribute('d', d);
+        hitArea.setAttribute('class', 'edge-hitarea');
+        hitArea.dataset.edgeIndex = i;
+        svg.appendChild(hitArea);
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', colorVar);
+        path.setAttribute('stroke-width', '2');
+        path.setAttribute('marker-end', markerEnd);
+        path.setAttribute('filter', 'url(#glow)');
+        path.dataset.from = e.from;
+        path.dataset.to = e.to;
+        path.dataset.edgeIndex = i;
+
+        if (e.type === 'async') {
+          path.setAttribute('stroke-dasharray', '8 4');
+        }
+
+        svg.appendChild(path);
+        pathObjs.push({ path, edge: e, d });
+      });
+
+      return pathObjs;
+    }
+
+    /* ========================================================================
+     * Animation orchestration
+     * ====================================================================== */
+
+    renderGroups();
+    renderNodes();
+    const pathObjs = renderEdges();
+
+    /**
+     * Triggers the staggered entrance animations for groups, nodes, edges, and particles.
+     */
+    function startAnimations() {
+      /* 1. Group fade-in (immediate) */
+      document.querySelectorAll('.group').forEach(g => {
+        g.classList.add('is-visible');
+      });
+
+      /* 2. Nodes fade-in-up, staggered */
+      const allNodes = document.querySelectorAll('.node');
+      allNodes.forEach((el, i) => {
+        el.style.animationDelay = (i * 150) + 'ms';
+        el.classList.add('is-visible');
+      });
+
+      const lastNodeDelay = (allNodes.length - 1) * 150;
+      const edgeStartDelay = lastNodeDelay + 1000;
+
+      /* 3. Edge stroke-dashoffset drawing */
+      pathObjs.forEach((obj, i) => {
+        const path = obj.path;
+        const len = path.getTotalLength();
+        path.style.strokeDasharray = len;
+        path.style.strokeDashoffset = len;
+        path.style.transition = `stroke-dashoffset 1.8s ease-in-out ${edgeStartDelay + i * 250}ms`;
+
+        /* If async, we need the original dash pattern after drawing completes */
+        const isAsync = obj.edge.type === 'async';
+
+        requestAnimationFrame(() => {
+          path.style.strokeDashoffset = '0';
+        });
+
+        /* After drawing animation, restore async dash pattern */
+        if (isAsync) {
+          setTimeout(() => {
+            path.style.transition = 'none';
+            path.style.strokeDasharray = '8 4';
+            path.style.strokeDashoffset = '0';
+          }, edgeStartDelay + i * 250 + 1850);
+        }
+      });
+
+      const edgeFinishDelay = edgeStartDelay + pathObjs.length * 250 + 1800;
+
+      /* 4. Particles start after edges finish */
+      setTimeout(() => {
+        spawnParticles();
+      }, edgeFinishDelay);
+
+      /* 5. Pulse glow on nodes after everything settles */
+      setTimeout(() => {
+        allNodes.forEach(el => { el.classList.add('is-pulsing'); });
+      }, edgeFinishDelay + 500);
+    }
+
+    /**
+     * Spawns 3 animated particle dots per edge path that travel along the cubic bezier.
+     */
+    function spawnParticles() {
+      const particleSvg = document.getElementById('particles');
+
+      pathObjs.forEach((obj, ei) => {
+        const colorVar = obj.edge.color === 'primary' ? '#6366f1' :
+                         obj.edge.color === 'secondary' ? '#06b6d4' :
+                         obj.edge.color === 'async' ? '#f59e0b' :
+                         '#ef4444';
+
+        for (let p = 0; p < 3; p++) {
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('r', '3');
+          circle.setAttribute('fill', colorVar);
+          circle.style.filter = `drop-shadow(0 0 4px ${colorVar})`;
+          circle.style.opacity = '0';
+          particleSvg.appendChild(circle);
+
+          animateParticle(circle, obj.path, p * 1200);
+        }
+      });
+    }
+
+    /**
+     * Animates a single particle circle along an SVG path using getPointAtLength.
+     * @param {SVGCircleElement} circle - the particle element
+     * @param {SVGPathElement} path - the edge path to follow
+     * @param {number} delay - initial delay in ms
+     */
+    function animateParticle(circle, path, delay) {
+      const totalLength = path.getTotalLength();
+      const duration = 3500;
+      let startTime = null;
+      let delayRemaining = delay;
+
+      function tick(timestamp) {
+        if (!startTime) startTime = timestamp;
+
+        if (delayRemaining > 0) {
+          const elapsed = timestamp - startTime;
+          if (elapsed < delayRemaining) {
+            requestAnimationFrame(tick);
+            return;
+          }
+          startTime = timestamp - (elapsed - delayRemaining);
+          delayRemaining = 0;
+        }
+
+        const elapsed = (timestamp - startTime) % duration;
+        const progress = elapsed / duration;
+        const point = path.getPointAtLength(progress * totalLength);
+
+        circle.setAttribute('cx', point.x);
+        circle.setAttribute('cy', point.y);
+        circle.style.opacity = '0.85';
+
+        requestAnimationFrame(tick);
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    /* Kick off after a tiny delay so DOM is painted */
+    requestAnimationFrame(() => { startAnimations(); });
+
+    /* ========================================================================
+     * Interactivity: Hover highlight + Tooltip
+     * ====================================================================== */
+
+    const tooltip = document.getElementById('tooltip');
+
+    /**
+     * Returns arrays of connected node IDs and edge paths for a given node ID.
+     * @param {string} nodeId - the hovered node's ID
+     * @returns {{connectedIds: Set, connectedPaths: Array}}
+     */
+    function getConnections(nodeId) {
+      const connectedIds = new Set([nodeId]);
+      const connectedPaths = [];
+
+      pathObjs.forEach(obj => {
+        if (obj.edge.from === nodeId || obj.edge.to === nodeId) {
+          connectedIds.add(obj.edge.from);
+          connectedIds.add(obj.edge.to);
+          connectedPaths.push(obj.path);
+        }
+      });
+
+      return { connectedIds, connectedPaths };
+    }
+
+    /* Delegate hover events on node layer */
+    const nodeLayer = document.getElementById('nodes');
+    let hoveredNodeId = null;
+
+    function clearHighlight() {
+      hoveredNodeId = null;
+      Object.values(nodeElements).forEach(el => {
+        el.classList.remove('is-dimmed');
+        el.classList.remove('is-highlighted');
+      });
+      pathObjs.forEach(obj => { obj.path.classList.remove('is-dimmed'); });
+      tooltip.classList.remove('is-active');
+    }
+
+    function applyHighlight(nodeId) {
+      if (hoveredNodeId === nodeId) return;
+      hoveredNodeId = nodeId;
+      const { connectedIds, connectedPaths } = getConnections(nodeId);
+
+      Object.values(nodeElements).forEach(el => {
+        const isConnected = connectedIds.has(el.dataset.nodeId);
+        el.classList.toggle('is-dimmed', !isConnected);
+        el.classList.toggle('is-highlighted', isConnected);
+      });
+
+      pathObjs.forEach(obj => {
+        obj.path.classList.toggle('is-dimmed', !connectedPaths.includes(obj.path));
+      });
+
+      const data = nodeMap[nodeId];
+      tooltip.innerHTML = `
+        <div class="tooltip-title">${data.label}</div>
+        <div class="tooltip-row"><span>Tech</span><span>${data.tech}</span></div>
+        <div class="tooltip-row"><span>Port</span><span>${data.port}</span></div>
+        <div style="margin-top:8px;color:var(--node-sub);font-size:11px;line-height:1.4;">${data.desc}</div>
+      `;
+      tooltip.classList.add('is-active');
+    }
+
+    nodeLayer.addEventListener('mouseover', (e) => {
+      const nodeEl = e.target.closest('.node');
+      if (!nodeEl) return;
+      applyHighlight(nodeEl.dataset.nodeId);
+    });
+
+    nodeLayer.addEventListener('mousemove', (e) => {
+      if (tooltip.classList.contains('is-active')) {
+        const pad = 16;
+        let tx = e.clientX + pad;
+        let ty = e.clientY + pad;
+        const rect = tooltip.getBoundingClientRect();
+        if (tx + rect.width > window.innerWidth) tx = e.clientX - rect.width - pad;
+        if (ty + rect.height > window.innerHeight) ty = e.clientY - rect.height - pad;
+        tooltip.style.left = tx + 'px';
+        tooltip.style.top = ty + 'px';
+      }
+    });
+
+    nodeLayer.addEventListener('mouseout', (e) => {
+      const related = e.relatedTarget;
+      /* Only clear if we actually left all nodes (not moving between children) */
+      if (related && related.closest && related.closest('.node')) return;
+      clearHighlight();
+    });
+
+    /* ========================================================================
+     * Interactivity: Edge hover tooltip (request/response data)
+     * ====================================================================== */
+
+    const edgeSvg = document.getElementById('edges');
+
+    /**
+     * Builds the edge tooltip HTML showing method, endpoint, request, and response.
+     * @param {Object} edge - edge data object with method, endpoint, request, response
+     * @returns {string} tooltip inner HTML
+     */
+    function buildEdgeTooltip(edge) {
+      const fromNode = nodeMap[edge.from];
+      const toNode = nodeMap[edge.to];
+      const methodClass = 'tooltip-method--' + (edge.method || '').toLowerCase();
+      return `
+        <div style="margin-bottom:8px;">
+          <span style="color:var(--node-sub);font-size:11px;">${fromNode.label} → ${toNode.label}</span>
+        </div>
+        <div style="margin-bottom:8px;">
+          <span class="tooltip-method ${methodClass}">${edge.method || edge.type}</span>
+          <span class="tooltip-endpoint">${edge.endpoint || edge.label}</span>
+        </div>
+        <div class="tooltip-data">
+          <div class="tooltip-data-label">→ Request</div>
+          <div class="tooltip-data-value">${edge.request || '—'}</div>
+          <div style="margin-top:6px;" class="tooltip-data-label">← Response</div>
+          <div class="tooltip-data-value tooltip-data-response">${edge.response || '—'}</div>
+        </div>`;
+    }
+
+    /**
+     * Finds the closest edge path to a point by sampling points along each path.
+     * @param {number} mx - mouse X in viewport coords
+     * @param {number} my - mouse Y in viewport coords
+     * @returns {{index: number, dist: number}|null}
+     */
+    let hoveredEdgeIndex = null;
+    const EDGE_HIT_DISTANCE = 14;
+
+    function findClosestEdge(mx, my) {
+      const vp = document.getElementById('viewport');
+      const vpRect = vp.getBoundingClientRect();
+      const localX = (mx - vpRect.left) / scale;
+      const localY = (my - vpRect.top) / scale;
+
+      let closest = null;
+      let minDist = Infinity;
+
+      pathObjs.forEach((obj, i) => {
+        const path = obj.path;
+        const len = path.getTotalLength();
+        const steps = Math.max(10, Math.round(len / 20));
+        for (let s = 0; s <= steps; s++) {
+          const pt = path.getPointAtLength((s / steps) * len);
+          const dx = pt.x - localX;
+          const dy = pt.y - localY;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < minDist) {
+            minDist = d;
+            closest = { index: i, dist: d };
+          }
+        }
+      });
+
+      return closest && closest.dist < EDGE_HIT_DISTANCE / scale ? closest : null;
+    }
+
+    document.addEventListener('mousemove', (e) => {
+      /* Skip if mouse is actually over a node element */
+      const elUnder = document.elementFromPoint(e.clientX, e.clientY);
+      if (elUnder && elUnder.closest && elUnder.closest('.node')) return;
+
+      const hit = findClosestEdge(e.clientX, e.clientY);
+      if (hit) {
+        const idx = hit.index;
+        if (hoveredEdgeIndex === idx) {
+          /* Just update tooltip position */
+          const pad = 16;
+          let tx = e.clientX + pad;
+          let ty = e.clientY + pad;
+          const rect = tooltip.getBoundingClientRect();
+          if (tx + rect.width > window.innerWidth) tx = e.clientX - rect.width - pad;
+          if (ty + rect.height > window.innerHeight) ty = e.clientY - rect.height - pad;
+          tooltip.style.left = tx + 'px';
+          tooltip.style.top = ty + 'px';
+          return;
+        }
+        hoveredEdgeIndex = idx;
+        const edge = edges[idx];
+
+        tooltip.innerHTML = buildEdgeTooltip(edge);
+        tooltip.classList.add('is-active');
+        tooltip.style.left = (e.clientX + 16) + 'px';
+        tooltip.style.top = (e.clientY + 16) + 'px';
+
+        const connectedIds = new Set([edge.from, edge.to]);
+        Object.values(nodeElements).forEach(el => {
+          const isConnected = connectedIds.has(el.dataset.nodeId);
+          el.classList.toggle('is-dimmed', !isConnected);
+          el.classList.toggle('is-highlighted', isConnected);
+        });
+        pathObjs.forEach((obj, i) => {
+          obj.path.classList.toggle('is-dimmed', i !== idx);
+        });
+      } else if (hoveredEdgeIndex !== null) {
+        hoveredEdgeIndex = null;
+        clearHighlight();
+      }
+    });
+
+    /* ========================================================================
+     * Interactivity: Zoom + Pan
+     * ====================================================================== */
+
+    const diagramEl = document.getElementById('diagram');
+    const viewport = document.getElementById('viewport');
+
+    let scale = 1;
+    let panX = 0;
+    let panY = 0;
+    let isPanning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let panOriginX = 0;
+    let panOriginY = 0;
+
+    /**
+     * Applies the current scale and pan transform to the viewport.
+     */
+    function applyTransform() {
+      viewport.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+    }
+
+    /* Fit diagram into viewport on load */
+    function fitToViewport() {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      /* Calculate bounding box of all nodes */
+      let maxX = 0, maxY = 0;
+      nodes.forEach(n => {
+        const p = positions[n.id];
+        if (p.x + NODE_WIDTH > maxX) maxX = p.x + NODE_WIDTH;
+        if (p.y + NODE_HEIGHT > maxY) maxY = p.y + NODE_HEIGHT;
+      });
+      maxX += PADDING;
+      maxY += PADDING;
+
+      const sx = vw / maxX;
+      const sy = vh / maxY;
+      scale = Math.min(sx, sy, 1.2);
+      scale = Math.max(0.3, Math.min(scale, 3.0));
+
+      panX = (vw - maxX * scale) / 2;
+      panY = (vh - maxY * scale) / 2;
+      applyTransform();
+    }
+
+    fitToViewport();
+    window.addEventListener('resize', fitToViewport);
+
+    /* Mouse wheel zoom */
+    diagramEl.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.92 : 1.08;
+      const newScale = Math.max(0.3, Math.min(scale * delta, 3.0));
+
+      /* Zoom toward cursor */
+      const rect = diagramEl.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      panX = mx - (mx - panX) * (newScale / scale);
+      panY = my - (my - panY) * (newScale / scale);
+      scale = newScale;
+
+      applyTransform();
+    }, { passive: false });
+
+    /* Click-drag pan */
+    diagramEl.addEventListener('mousedown', (e) => {
+      /* Ignore if clicking a node */
+      if (e.target.closest('.node')) return;
+      isPanning = true;
+      diagramEl.classList.add('is-panning');
+      panStartX = e.clientX;
+      panStartY = e.clientY;
+      panOriginX = panX;
+      panOriginY = panY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isPanning) return;
+      panX = panOriginX + (e.clientX - panStartX);
+      panY = panOriginY + (e.clientY - panStartY);
+      applyTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+      isPanning = false;
+      diagramEl.classList.remove('is-panning');
+    });
+
+    /* Double-click reset */
+    diagramEl.addEventListener('dblclick', (e) => {
+      if (e.target.closest('.node')) return;
+      scale = 1.0;
+      panX = 0;
+      panY = 0;
+      applyTransform();
+    });
+  </script>
+</body>
+</html>
