@@ -6,6 +6,12 @@
 
 Animated software architecture diagrams as self-contained HTML files. A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill that generates dark neon glassmorphic diagrams with zero external dependencies — all CSS, JS, and SVG inline in a single `.html` file.
 
+## Example
+
+<p align="center">
+  <img src="example.png" alt="E-Commerce Microservices Architecture">
+</p>
+
 ## Quick Start
 
 ```bash
