@@ -4,7 +4,7 @@
 
 # Cartographer
 
-Animated software architecture diagrams as self-contained HTML files. A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill that generates dark neon glassmorphic diagrams with zero external dependencies — all CSS, JS, and SVG inline in a single `.html` file.
+Animated software architecture diagrams as self-contained HTML files. An [agent skill](https://skills.sh) that generates dark neon glassmorphic diagrams with zero external dependencies — all CSS, JS, and SVG inline in a single `.html` file.
 
 ## Example
 
@@ -16,13 +16,13 @@ Animated software architecture diagrams as self-contained HTML files. A [Claude 
 
 ```bash
 # Install the skill
-claude install stevederico/cartographer
+npx skills add stevederico/cartographer
 
 # Generate a diagram from a description
-claude "draw an architecture diagram for a web app with an API, database, and cache"
+"draw an architecture diagram for a web app with an API, database, and cache"
 
 # Generate from your codebase
-claude "diagram this system from codebase"
+"diagram this system from codebase"
 ```
 
 ## Features

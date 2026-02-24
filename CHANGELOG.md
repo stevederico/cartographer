@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+
+  Update README agent-agnostic
+  Use skills.sh install command
+
 ## 1.0.1
 
   Add example screenshot to README
