@@ -945,8 +945,7 @@
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('r', '3');
         circle.setAttribute('fill', colorVar);
-        circle.style.filter = `drop-shadow(0 0 4px ${colorVar})`;
-        circle.style.opacity = '0';
+        circle.setAttribute('opacity', '0');
         particleSvg.appendChild(circle);
 
         allParticles.push({ circle, path: obj.path, totalLength, offset: p * 1200 });
@@ -964,7 +963,7 @@
         const point = p.path.getPointAtLength(progress * p.totalLength);
         p.circle.setAttribute('cx', point.x);
         p.circle.setAttribute('cy', point.y);
-        p.circle.style.opacity = '0.85';
+        p.circle.setAttribute('opacity', '0.85');
       }
       requestAnimationFrame(tickParticles);
     }

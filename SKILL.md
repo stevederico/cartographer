@@ -8,7 +8,7 @@ description: >
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch
 metadata:
   author: cartographer
-  version: "1.2.0"
+  version: "1.2.1"
   argument-hint: <description or "from codebase">
 ---
 
@@ -1061,8 +1061,7 @@ function spawnParticlesForEdge(obj) {
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     circle.setAttribute('r', '3');
     circle.setAttribute('fill', colorVar);
-    circle.style.filter = `drop-shadow(0 0 4px ${colorVar})`;
-    circle.style.opacity = '0';
+    circle.setAttribute('opacity', '0');
     particleSvg.appendChild(circle);
 
     particles.push({ circle, path: obj.path, totalLength, offset: p * PARTICLE_STAGGER });
@@ -1081,7 +1080,7 @@ function tickParticles(timestamp) {
     const point = p.path.getPointAtLength(progress * p.totalLength);
     p.circle.setAttribute('cx', point.x);
     p.circle.setAttribute('cy', point.y);
-    p.circle.style.opacity = '0.85';
+    p.circle.setAttribute('opacity', '0.85');
   }
   requestAnimationFrame(tickParticles);
 }
@@ -2268,7 +2267,7 @@ Below is a COMPLETE, working HTML file for a 3-node diagram: **Web App -> API Se
         const circle = document.createElementNS(svgNS, 'circle');
         circle.setAttribute('r', '3');
         circle.setAttribute('fill', colorVar);
-        circle.style.filter = `drop-shadow(0 0 4px ${colorVar})`;
+        circle.setAttribute('opacity', '0');
         circle.style.opacity = '0';
         particleSvg.appendChild(circle);
 
@@ -2287,7 +2286,7 @@ Below is a COMPLETE, working HTML file for a 3-node diagram: **Web App -> API Se
         const point = p.path.getPointAtLength(progress * p.totalLength);
         p.circle.setAttribute('cx', point.x);
         p.circle.setAttribute('cy', point.y);
-        p.circle.style.opacity = '0.85';
+        p.circle.setAttribute('opacity', '0.85');
       }
       requestAnimationFrame(tickParticles);
     }

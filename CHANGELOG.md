@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1
+
+  Remove particle drop-shadow filter
+
 ## 1.2.0
 
   Align arrows with working example
