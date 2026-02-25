@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0
+
+  Align arrows with working example
+  Simplify glow to 2-stage filter
+  Replace offset-path with rAF particles
+  Single rAF loop for all particles
+
 ## 1.1.1
 
   Fix invisible horizontal edge via bezier nudge

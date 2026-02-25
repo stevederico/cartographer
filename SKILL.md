@@ -8,7 +8,7 @@ description: >
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch
 metadata:
   author: cartographer
-  version: "1.1.1"
+  version: "1.2.0"
   argument-hint: <description or "from codebase">
 ---
 
@@ -319,47 +319,33 @@ Place inside the `<svg>` `<defs>` block — one arrow marker per color variant, 
 ```html
 <svg class="edge-layer" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <marker id="arrow-primary" markerWidth="10" markerHeight="7"
-            refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L0,7 L10,3.5 z" fill="#6366f1" />
-    </marker>
-
-    <marker id="arrow-secondary" markerWidth="10" markerHeight="7"
-            refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L0,7 L10,3.5 z" fill="#06b6d4" />
-    </marker>
-
-    <marker id="arrow-async" markerWidth="10" markerHeight="7"
-            refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L0,7 L10,3.5 z" fill="#f59e0b" />
-    </marker>
-
-    <marker id="arrow-error" markerWidth="10" markerHeight="7"
-            refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L0,7 L10,3.5 z" fill="#ef4444" />
-    </marker>
-
-    <filter id="edge-glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
-      <feColorMatrix in="blur" type="matrix"
-        values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"
-        result="glow" />
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
       <feMerge>
-        <feMergeNode in="glow" />
-        <feMergeNode in="SourceGraphic" />
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
 
-    <filter id="edge-glow-strong" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
-      <feColorMatrix in="blur" type="matrix"
-        values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -8"
-        result="glow" />
-      <feMerge>
-        <feMergeNode in="glow" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
+    <marker id="arrow-primary" viewBox="0 0 10 8" refX="10" refY="4"
+            markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 4 L0 8 z" fill="var(--edge-primary)"/>
+    </marker>
+
+    <marker id="arrow-secondary" viewBox="0 0 10 8" refX="10" refY="4"
+            markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 4 L0 8 z" fill="var(--edge-secondary)"/>
+    </marker>
+
+    <marker id="arrow-async" viewBox="0 0 10 8" refX="10" refY="4"
+            markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 4 L0 8 z" fill="var(--edge-async)"/>
+    </marker>
+
+    <marker id="arrow-error" viewBox="0 0 10 8" refX="10" refY="4"
+            markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 4 L0 8 z" fill="var(--edge-error)"/>
+    </marker>
   </defs>
 </svg>
 ```
@@ -377,13 +363,15 @@ For vertical (top-to-bottom) flow:
 - Start anchor: center-bottom of source node
 - End anchor: center-top of target node
 
+**Horizontal line fix:** When source and target share the same anchor coordinate on the cross-axis (e.g. `src.y === dst.y` in horizontal flow), the bezier path has a zero-height bounding box. SVG percentage-based filter regions (like the glow filter) collapse to 0, making the stroke invisible. Fix: nudge control points ±0.5px on the cross-axis so the bounding box always has non-zero height.
+
 ---
 
 ## Animations
 
 ### Keyframes
 
-All 5 animation types:
+All 4 animation types:
 
 ```css
 /* 1. Nodes entering the scene */
@@ -408,17 +396,7 @@ All 5 animation types:
   }
 }
 
-/* 3. Particle traveling along an edge path */
-@keyframes flowDot {
-  from {
-    offset-distance: 0%;
-  }
-  to {
-    offset-distance: 100%;
-  }
-}
-
-/* 4. Pulsing glow for active/highlighted nodes */
+/* 3. Pulsing glow for active/highlighted nodes */
 @keyframes pulse {
   0%, 100% {
     filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.4))
@@ -431,7 +409,7 @@ All 5 animation types:
   }
 }
 
-/* 5. Group fade-in */
+/* 4. Group fade-in */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -986,12 +964,20 @@ function routeEdge(edge, positions, allEdges, flow = 'horizontal', layout = LAYO
     const src = { x: srcPos.x + layout.NODE_WIDTH, y: srcPos.y + layout.NODE_HEIGHT / 2 + offset };
     const dst = { x: dstPos.x, y: dstPos.y + layout.NODE_HEIGHT / 2 + offset };
     const dx = dst.x - src.x;
-    return `M ${src.x} ${src.y} C ${src.x + dx * 0.4} ${src.y}, ${dst.x - dx * 0.4} ${dst.y}, ${dst.x} ${dst.y}`;
+    // Nudge control points ±0.5px when line is horizontal to prevent zero-height
+    // bounding box which collapses %-based SVG filter regions (glow becomes invisible)
+    const cp1Y = (src.y === dst.y) ? src.y - 0.5 : src.y;
+    const cp2Y = (src.y === dst.y) ? dst.y + 0.5 : dst.y;
+    return `M ${src.x} ${src.y} C ${src.x + dx * 0.4} ${cp1Y}, ${dst.x - dx * 0.4} ${cp2Y}, ${dst.x} ${dst.y}`;
   } else {
     const src = { x: srcPos.x + layout.NODE_WIDTH / 2 + offset, y: srcPos.y + layout.NODE_HEIGHT };
     const dst = { x: dstPos.x + layout.NODE_WIDTH / 2 + offset, y: dstPos.y };
     const dy = dst.y - src.y;
-    return `M ${src.x} ${src.y} C ${src.x} ${src.y + dy * 0.4}, ${dst.x} ${dst.y - dy * 0.4}, ${dst.x} ${dst.y}`;
+    // Nudge control points ±0.5px when line is vertical to prevent zero-width
+    // bounding box which collapses %-based SVG filter regions (glow becomes invisible)
+    const cp1X = (src.x === dst.x) ? src.x - 0.5 : src.x;
+    const cp2X = (src.x === dst.x) ? dst.x + 0.5 : dst.x;
+    return `M ${src.x} ${src.y} C ${cp1X} ${src.y + dy * 0.4}, ${cp2X} ${dst.y - dy * 0.4}, ${dst.x} ${dst.y}`;
   }
 }
 ```
@@ -1035,58 +1021,79 @@ After computing all positions, the `fitToViewport()` function dynamically scales
 
 ---
 
-## Particle Styles
+## Particle System
 
-Particles ride along a CSS `offset-path` that mirrors each SVG edge path.
+Particles are SVG `<circle>` elements animated along edge paths via `getPointAtLength()` + `requestAnimationFrame`. Each edge spawns its particles after its draw animation finishes, creating a staggered effect.
+
+### Particle Layer CSS
 
 ```css
-.particle {
+.particle-layer {
   position: absolute;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  inset: 0;
+  z-index: 4;
   pointer-events: none;
-  z-index: 20;
-  animation: flowDot var(--particle-duration, 3500ms) linear infinite;
-  animation-delay: var(--particle-delay, 0ms);
-  offset-rotate: 0deg;
-}
-
-.particle--primary {
-  background: #6366f1;
-  filter: drop-shadow(0 0 4px #6366f1) drop-shadow(0 0 10px rgba(99, 102, 241, 0.6));
-}
-
-.particle--secondary {
-  background: #06b6d4;
-  filter: drop-shadow(0 0 4px #06b6d4) drop-shadow(0 0 10px rgba(6, 182, 212, 0.6));
-}
-
-.particle--async {
-  background: #f59e0b;
-  filter: drop-shadow(0 0 4px #f59e0b) drop-shadow(0 0 10px rgba(245, 158, 11, 0.6));
-}
-
-.particle--error {
-  background: #ef4444;
-  filter: drop-shadow(0 0 4px #ef4444) drop-shadow(0 0 10px rgba(239, 68, 68, 0.6));
+  overflow: visible;
 }
 ```
 
-### Spawning Particles (JS)
+### Spawning Particles Per Edge (JS)
+
+Particles spawn per-edge, staggered after each edge's draw animation finishes:
 
 ```js
-function spawnParticles(pathEl, colorClass, container) {
-  const pathData = pathEl.getAttribute('d');
-  for (let i = 0; i < PARTICLE_COUNT_PER_EDGE; i++) {
-    const dot = document.createElement('div');
-    dot.className = `particle ${colorClass}`;
-    dot.style.setProperty('--particle-delay', `${i * PARTICLE_STAGGER}ms`);
-    dot.style.setProperty('--particle-duration', `${PARTICLE_DURATION}ms`);
-    dot.style.offsetPath = `path('${pathData}')`;
-    container.appendChild(dot);
+/** All active particles — updated by a single rAF loop */
+const particles = [];
+
+/**
+ * Spawns particle dots for a single edge path.
+ * @param {Object} obj - pathObj with path element and edge data
+ */
+function spawnParticlesForEdge(obj) {
+  const particleSvg = document.getElementById('particles');
+  const colorVar = obj.edge.color === 'primary' ? '#6366f1' :
+                   obj.edge.color === 'secondary' ? '#06b6d4' :
+                   obj.edge.color === 'async' ? '#f59e0b' :
+                   '#ef4444';
+  const totalLength = obj.path.getTotalLength();
+
+  for (let p = 0; p < PARTICLE_COUNT_PER_EDGE; p++) {
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('r', '3');
+    circle.setAttribute('fill', colorVar);
+    circle.style.filter = `drop-shadow(0 0 4px ${colorVar})`;
+    circle.style.opacity = '0';
+    particleSvg.appendChild(circle);
+
+    particles.push({ circle, path: obj.path, totalLength, offset: p * PARTICLE_STAGGER });
   }
 }
+
+/**
+ * Single rAF loop that updates every particle each frame.
+ * Avoids N independent loops which cause jank on large diagrams.
+ */
+function tickParticles(timestamp) {
+  for (const p of particles) {
+    const elapsed = (timestamp - p.offset) % PARTICLE_DURATION;
+    if (elapsed < 0) continue;            // still in initial stagger
+    const progress = ((elapsed % PARTICLE_DURATION) + PARTICLE_DURATION) % PARTICLE_DURATION / PARTICLE_DURATION;
+    const point = p.path.getPointAtLength(progress * p.totalLength);
+    p.circle.setAttribute('cx', point.x);
+    p.circle.setAttribute('cy', point.y);
+    p.circle.style.opacity = '0.85';
+  }
+  requestAnimationFrame(tickParticles);
+}
+```
+
+### Particle Spawning
+
+Particles spawn immediately and a single rAF loop drives all of them:
+
+```js
+pathObjs.forEach((obj) => { spawnParticlesForEdge(obj); });
+requestAnimationFrame(tickParticles);
 ```
 
 ---
@@ -1231,7 +1238,7 @@ The complete HTML structure skeleton:
     /* === 6. Group / Container === */
     /* === 7. Animation Keyframes (all 5) === */
     /* === 8. Animation Application (nodes, edges, groups) === */
-    /* === 9. Particle Styles === */
+    /* === 9. Particle Layer === */
     /* === 10. Tooltip === */
     /* === 11. Zoom/Pan Viewport === */
     /* === 12. Legend === */
@@ -1253,8 +1260,8 @@ The complete HTML structure skeleton:
         <!-- Edge <path> elements -->
       </svg>
 
-      <!-- Particle container -->
-      <div class="particle-container"></div>
+      <!-- Particle layer (SVG circles animated via JS) -->
+      <svg id="particles" class="particle-layer"></svg>
     </div>
   </div>
 
@@ -1274,7 +1281,7 @@ The complete HTML structure skeleton:
     // 5. Render nodes, groups, edges to DOM
     // 6. Compute edge path lengths for animations
     // 7. Set animation delays (orchestration timeline)
-    // 8. Spawn particles
+    // 8. Spawn particles per-edge (SVG circles + requestAnimationFrame)
     // 9. Setup hover highlight + tooltips
     // 10. Setup zoom/pan + double-click reset
   </script>
@@ -1609,11 +1616,6 @@ Below is a COMPLETE, working HTML file for a 3-node diagram: **Web App -> API Se
       to { stroke-dashoffset: 0; }
     }
 
-    @keyframes flowDot {
-      from { offset-distance: 0%; }
-      to { offset-distance: 100%; }
-    }
-
     @keyframes pulse {
       0%, 100% {
         filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.4))
@@ -1631,37 +1633,13 @@ Below is a COMPLETE, working HTML file for a 3-node diagram: **Web App -> API Se
       to { opacity: 1; }
     }
 
-    /* === 7. Particle Styles === */
-    .particle {
+    /* === 7. Particle Layer === */
+    .particle-layer {
       position: absolute;
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
+      inset: 0;
+      z-index: 4;
       pointer-events: none;
-      z-index: 20;
-      animation: flowDot var(--particle-duration, 3500ms) linear infinite;
-      animation-delay: var(--particle-delay, 0ms);
-      offset-rotate: 0deg;
-    }
-
-    .particle--primary {
-      background: #6366f1;
-      filter: drop-shadow(0 0 4px #6366f1) drop-shadow(0 0 10px rgba(99, 102, 241, 0.6));
-    }
-
-    .particle--secondary {
-      background: #06b6d4;
-      filter: drop-shadow(0 0 4px #06b6d4) drop-shadow(0 0 10px rgba(6, 182, 212, 0.6));
-    }
-
-    .particle--async {
-      background: #f59e0b;
-      filter: drop-shadow(0 0 4px #f59e0b) drop-shadow(0 0 10px rgba(245, 158, 11, 0.6));
-    }
-
-    .particle--error {
-      background: #ef4444;
-      filter: drop-shadow(0 0 4px #ef4444) drop-shadow(0 0 10px rgba(239, 68, 68, 0.6));
+      overflow: visible;
     }
 
     /* === 8. Tooltip === */
@@ -2073,7 +2051,10 @@ Below is a COMPLETE, working HTML file for a 3-node diagram: **Web App -> API Se
       const src = { x: srcPos.x + NODE_WIDTH, y: srcPos.y + NODE_HEIGHT / 2 + offset };
       const dst = { x: dstPos.x, y: dstPos.y + NODE_HEIGHT / 2 + offset };
       const dx = dst.x - src.x;
-      return `M ${src.x} ${src.y} C ${src.x + dx * 0.4} ${src.y}, ${dst.x - dx * 0.4} ${dst.y}, ${dst.x} ${dst.y}`;
+      // Nudge control points ±0.5px when horizontal to prevent zero-height bbox
+      const cp1Y = (src.y === dst.y) ? src.y - 0.5 : src.y;
+      const cp2Y = (src.y === dst.y) ? dst.y + 0.5 : dst.y;
+      return `M ${src.x} ${src.y} C ${src.x + dx * 0.4} ${cp1Y}, ${dst.x - dx * 0.4} ${cp2Y}, ${dst.x} ${dst.y}`;
     }
 
     // =============================================
@@ -2161,49 +2142,43 @@ Below is a COMPLETE, working HTML file for a 3-node diagram: **Web App -> API Se
 
     // Defs: markers + filters
     const defs = document.createElementNS(svgNS, 'defs');
-    const markerColors = {
-      'primary': '#6366f1',
-      'secondary': '#06b6d4',
-      'async': '#f59e0b',
-      'error': '#ef4444'
+    const markerTypes = ['primary', 'secondary', 'async', 'error'];
+    const markerCssVars = {
+      'primary': 'var(--edge-primary)',
+      'secondary': 'var(--edge-secondary)',
+      'async': 'var(--edge-async)',
+      'error': 'var(--edge-error)'
     };
-    for (const [name, color] of Object.entries(markerColors)) {
+    for (const name of markerTypes) {
       const marker = document.createElementNS(svgNS, 'marker');
       marker.setAttribute('id', `arrow-${name}`);
-      marker.setAttribute('markerWidth', '10');
-      marker.setAttribute('markerHeight', '7');
-      marker.setAttribute('refX', '9');
-      marker.setAttribute('refY', '3.5');
-      marker.setAttribute('orient', 'auto');
-      marker.setAttribute('markerUnits', 'strokeWidth');
+      marker.setAttribute('viewBox', '0 0 10 8');
+      marker.setAttribute('refX', '10');
+      marker.setAttribute('refY', '4');
+      marker.setAttribute('markerWidth', '8');
+      marker.setAttribute('markerHeight', '6');
+      marker.setAttribute('orient', 'auto-start-reverse');
       const arrowPath = document.createElementNS(svgNS, 'path');
-      arrowPath.setAttribute('d', 'M0,0 L0,7 L10,3.5 z');
-      arrowPath.setAttribute('fill', color);
+      arrowPath.setAttribute('d', 'M0 0 L10 4 L0 8 z');
+      arrowPath.setAttribute('fill', markerCssVars[name]);
       marker.appendChild(arrowPath);
       defs.appendChild(marker);
     }
 
-    // Glow filter
+    // Glow filter (2-stage: blur → merge)
     const filter = document.createElementNS(svgNS, 'filter');
-    filter.setAttribute('id', 'edge-glow');
+    filter.setAttribute('id', 'glow');
     filter.setAttribute('x', '-50%');
     filter.setAttribute('y', '-50%');
     filter.setAttribute('width', '200%');
     filter.setAttribute('height', '200%');
     const blur = document.createElementNS(svgNS, 'feGaussianBlur');
-    blur.setAttribute('in', 'SourceGraphic');
     blur.setAttribute('stdDeviation', '3');
     blur.setAttribute('result', 'blur');
     filter.appendChild(blur);
-    const colorMatrix = document.createElementNS(svgNS, 'feColorMatrix');
-    colorMatrix.setAttribute('in', 'blur');
-    colorMatrix.setAttribute('type', 'matrix');
-    colorMatrix.setAttribute('values', '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7');
-    colorMatrix.setAttribute('result', 'glow');
-    filter.appendChild(colorMatrix);
     const merge = document.createElementNS(svgNS, 'feMerge');
     const mn1 = document.createElementNS(svgNS, 'feMergeNode');
-    mn1.setAttribute('in', 'glow');
+    mn1.setAttribute('in', 'blur');
     merge.appendChild(mn1);
     const mn2 = document.createElementNS(svgNS, 'feMergeNode');
     mn2.setAttribute('in', 'SourceGraphic');
@@ -2233,7 +2208,7 @@ Below is a COMPLETE, working HTML file for a 3-node diagram: **Web App -> API Se
       path.setAttribute('class', `edge ${typeClass}`);
       path.setAttribute('d', d);
       path.setAttribute('marker-end', `url(#${markerName})`);
-      path.setAttribute('filter', 'url(#edge-glow)');
+      path.setAttribute('filter', 'url(#glow)');
       svg.appendChild(path);
       pathObjs.push({ path, edge });
 
@@ -2269,35 +2244,57 @@ Below is a COMPLETE, working HTML file for a 3-node diagram: **Web App -> API Se
 
     diagram.appendChild(svg);
 
-    // Spawn particles
-    const particleContainer = document.createElement('div');
-    particleContainer.style.position = 'absolute';
-    particleContainer.style.inset = '0';
-    particleContainer.style.pointerEvents = 'none';
-    particleContainer.style.zIndex = '20';
-    diagram.appendChild(particleContainer);
+    // Particle layer (SVG circles animated via requestAnimationFrame)
+    const particleSvg = document.createElementNS(svgNS, 'svg');
+    particleSvg.setAttribute('class', 'particle-layer');
+    particleSvg.setAttribute('id', 'particles');
+    particleSvg.style.width = `${maxX}px`;
+    particleSvg.style.height = `${maxY}px`;
+    diagram.appendChild(particleSvg);
 
-    edges.forEach((edge, i) => {
-      const pathEl = pathObjs[i]?.path;
-      if (!pathEl) return;
+    /** All active particles — updated by a single rAF loop */
+    const particles = [];
 
-      const colorClass = edge.type === 'async' ? 'particle--async'
-        : edge.type === 'error' ? 'particle--error'
-        : edge.type === 'secondary' ? 'particle--secondary'
-        : 'particle--primary';
+    /**
+     * Spawns particle dots for a single edge path.
+     * @param {Object} obj - pathObj with path element and edge data
+     */
+    function spawnParticlesForEdge(obj) {
+      const colorMap = { sync: '#6366f1', secondary: '#06b6d4', async: '#f59e0b', error: '#ef4444' };
+      const colorVar = colorMap[obj.edge.type] || '#6366f1';
+      const totalLength = obj.path.getTotalLength();
 
-      setTimeout(() => {
-        const pathData = pathEl.getAttribute('d');
-        for (let p = 0; p < PARTICLE_COUNT_PER_EDGE; p++) {
-          const dot = document.createElement('div');
-          dot.className = `particle ${colorClass}`;
-          dot.style.setProperty('--particle-delay', `${p * PARTICLE_STAGGER}ms`);
-          dot.style.setProperty('--particle-duration', `${PARTICLE_DURATION}ms`);
-          dot.style.offsetPath = `path('${pathData}')`;
-          particleContainer.appendChild(dot);
-        }
-      }, nodesFinishTime);
-    });
+      for (let p = 0; p < PARTICLE_COUNT_PER_EDGE; p++) {
+        const circle = document.createElementNS(svgNS, 'circle');
+        circle.setAttribute('r', '3');
+        circle.setAttribute('fill', colorVar);
+        circle.style.filter = `drop-shadow(0 0 4px ${colorVar})`;
+        circle.style.opacity = '0';
+        particleSvg.appendChild(circle);
+
+        particles.push({ circle, path: obj.path, totalLength, offset: p * PARTICLE_STAGGER });
+      }
+    }
+
+    /**
+     * Single rAF loop that updates every particle each frame.
+     */
+    function tickParticles(timestamp) {
+      for (const p of particles) {
+        const elapsed = (timestamp - p.offset) % PARTICLE_DURATION;
+        if (elapsed < 0) continue;
+        const progress = ((elapsed % PARTICLE_DURATION) + PARTICLE_DURATION) % PARTICLE_DURATION / PARTICLE_DURATION;
+        const point = p.path.getPointAtLength(progress * p.totalLength);
+        p.circle.setAttribute('cx', point.x);
+        p.circle.setAttribute('cy', point.y);
+        p.circle.style.opacity = '0.85';
+      }
+      requestAnimationFrame(tickParticles);
+    }
+
+    // Spawn particles immediately, single loop drives all
+    pathObjs.forEach((obj) => { spawnParticlesForEdge(obj); });
+    requestAnimationFrame(tickParticles);
 
     // =============================================
     // INTERACTIVITY: Setup

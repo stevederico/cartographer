@@ -915,12 +915,9 @@
         }, edgeStartDelay + i * 250 + 1850);
       });
 
-      /* 4. Particles start per-edge after its line finishes drawing */
-      pathObjs.forEach((obj, i) => {
-        setTimeout(() => {
-          spawnParticlesForEdge(obj, i);
-        }, edgeStartDelay + i * 250 + 1800);
-      });
+      /* 4. Particles start immediately */
+      pathObjs.forEach((obj) => { spawnParticlesForEdge(obj); });
+      requestAnimationFrame(tickParticles);
 
       /* 5. Pulse glow on nodes after edges finish drawing */
       const edgeFinishDelay = edgeStartDelay + pathObjs.length * 250 + 1800;
@@ -929,8 +926,11 @@
       }, edgeFinishDelay + 500);
     }
 
+    /** All active particles — updated by a single rAF loop */
+    const allParticles = [];
+
     /**
-     * Spawns 3 animated particle dots for a single edge path.
+     * Spawns 3 particle dots for a single edge path.
      * @param {Object} obj - pathObj with path element and edge data
      */
     function spawnParticlesForEdge(obj) {
@@ -939,6 +939,7 @@
                        obj.edge.color === 'secondary' ? '#06b6d4' :
                        obj.edge.color === 'async' ? '#f59e0b' :
                        '#ef4444';
+      const totalLength = obj.path.getTotalLength();
 
       for (let p = 0; p < 3; p++) {
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -948,47 +949,24 @@
         circle.style.opacity = '0';
         particleSvg.appendChild(circle);
 
-        animateParticle(circle, obj.path, p * 1200);
+        allParticles.push({ circle, path: obj.path, totalLength, offset: p * 1200 });
       }
     }
 
     /**
-     * Animates a single particle circle along an SVG path using getPointAtLength.
-     * @param {SVGCircleElement} circle - the particle element
-     * @param {SVGPathElement} path - the edge path to follow
-     * @param {number} delay - initial delay in ms
+     * Single rAF loop that updates every particle each frame.
      */
-    function animateParticle(circle, path, delay) {
-      const totalLength = path.getTotalLength();
-      const duration = 3500;
-      let startTime = null;
-      let delayRemaining = delay;
-
-      function tick(timestamp) {
-        if (!startTime) startTime = timestamp;
-
-        if (delayRemaining > 0) {
-          const elapsed = timestamp - startTime;
-          if (elapsed < delayRemaining) {
-            requestAnimationFrame(tick);
-            return;
-          }
-          startTime = timestamp - (elapsed - delayRemaining);
-          delayRemaining = 0;
-        }
-
-        const elapsed = (timestamp - startTime) % duration;
-        const progress = elapsed / duration;
-        const point = path.getPointAtLength(progress * totalLength);
-
-        circle.setAttribute('cx', point.x);
-        circle.setAttribute('cy', point.y);
-        circle.style.opacity = '0.85';
-
-        requestAnimationFrame(tick);
+    function tickParticles(timestamp) {
+      for (const p of allParticles) {
+        const elapsed = (timestamp - p.offset) % 3500;
+        if (elapsed < 0) continue;
+        const progress = ((elapsed % 3500) + 3500) % 3500 / 3500;
+        const point = p.path.getPointAtLength(progress * p.totalLength);
+        p.circle.setAttribute('cx', point.x);
+        p.circle.setAttribute('cy', point.y);
+        p.circle.style.opacity = '0.85';
       }
-
-      requestAnimationFrame(tick);
+      requestAnimationFrame(tickParticles);
     }
 
     /* Kick off after a tiny delay so DOM is painted */
