@@ -1,5 +1,5 @@
 ---
-name: arch-diagram
+name: cartographer
 description: >
   Generate stunning animated software architecture diagrams as self-contained HTML files.
   Use when the user says: "draw an architecture diagram", "diagram this system",
@@ -7,12 +7,12 @@ description: >
   "show me the architecture", "map this system", "draw the services".
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch
 metadata:
-  author: arch-diagram
-  version: "1.0.0"
+  author: cartographer
+  version: "1.1.1"
   argument-hint: <description or "from codebase">
 ---
 
-# arch-diagram
+# cartographer
 
 You generate self-contained HTML files with animated architecture diagrams. Every diagram uses a dark neon glass aesthetic with glassmorphic nodes, glowing edges, animated particles, and smooth entrance animations. The output is always a single `.html` file with zero external dependencies — all CSS and JS are inline.
 
@@ -339,7 +339,7 @@ Place inside the `<svg>` `<defs>` block — one arrow marker per color variant, 
       <path d="M0,0 L0,7 L10,3.5 z" fill="#ef4444" />
     </marker>
 
-    <filter id="edge-glow" x="-20%" y="-20%" width="140%" height="140%">
+    <filter id="edge-glow" x="-50%" y="-50%" width="200%" height="200%">
       <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
       <feColorMatrix in="blur" type="matrix"
         values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"
@@ -350,7 +350,7 @@ Place inside the `<svg>` `<defs>` block — one arrow marker per color variant, 
       </feMerge>
     </filter>
 
-    <filter id="edge-glow-strong" x="-30%" y="-30%" width="160%" height="160%">
+    <filter id="edge-glow-strong" x="-50%" y="-50%" width="200%" height="200%">
       <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
       <feColorMatrix in="blur" type="matrix"
         values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -8"
@@ -2186,10 +2186,10 @@ Below is a COMPLETE, working HTML file for a 3-node diagram: **Web App -> API Se
     // Glow filter
     const filter = document.createElementNS(svgNS, 'filter');
     filter.setAttribute('id', 'edge-glow');
-    filter.setAttribute('x', '-20%');
-    filter.setAttribute('y', '-20%');
-    filter.setAttribute('width', '140%');
-    filter.setAttribute('height', '140%');
+    filter.setAttribute('x', '-50%');
+    filter.setAttribute('y', '-50%');
+    filter.setAttribute('width', '200%');
+    filter.setAttribute('height', '200%');
     const blur = document.createElementNS(svgNS, 'feGaussianBlur');
     blur.setAttribute('in', 'SourceGraphic');
     blur.setAttribute('stdDeviation', '3');

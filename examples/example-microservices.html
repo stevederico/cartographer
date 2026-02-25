@@ -508,7 +508,7 @@
     <div id="viewport" class="diagram-viewport">
       <svg id="edges" class="edge-layer">
         <defs>
-          <filter id="glow">
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="3" result="blur"/>
             <feMerge>
               <feMergeNode in="blur"/>
@@ -821,9 +821,12 @@
 
         const dx = x2 - x1;
         const cx1 = x1 + dx * 0.4;
-        const cy1 = y1;
         const cx2 = x1 + dx * 0.6;
-        const cy2 = y2;
+        /* Nudge control points when line is perfectly horizontal so the path
+           bounding box has non-zero height — prevents the %-based SVG glow
+           filter region from collapsing to 0 and hiding the stroke. */
+        const cy1 = (y1 === y2) ? y1 - 0.5 : y1;
+        const cy2 = (y1 === y2) ? y2 + 0.5 : y2;
 
         const d = `M${x1},${y1} C${cx1},${cy1} ${cx2},${cy2} ${x2},${y2}`;
 
@@ -904,20 +907,20 @@
           path.style.strokeDashoffset = '0';
         });
 
-        /* After drawing animation, restore async dash pattern */
-        if (isAsync) {
-          setTimeout(() => {
-            path.style.transition = 'none';
-            path.style.strokeDasharray = '8 4';
-            path.style.strokeDashoffset = '0';
-          }, edgeStartDelay + i * 250 + 1850);
-        }
+        /* After drawing animation completes, clean up dasharray */
+        setTimeout(() => {
+          path.style.transition = 'none';
+          path.style.strokeDasharray = isAsync ? '8 4' : 'none';
+          path.style.strokeDashoffset = '0';
+        }, edgeStartDelay + i * 250 + 1850);
       });
 
-      /* 4. Particles start immediately with edges */
-      setTimeout(() => {
-        spawnParticles();
-      }, edgeStartDelay);
+      /* 4. Particles start per-edge after its line finishes drawing */
+      pathObjs.forEach((obj, i) => {
+        setTimeout(() => {
+          spawnParticlesForEdge(obj, i);
+        }, edgeStartDelay + i * 250 + 1800);
+      });
 
       /* 5. Pulse glow on nodes after edges finish drawing */
       const edgeFinishDelay = edgeStartDelay + pathObjs.length * 250 + 1800;
@@ -927,28 +930,26 @@
     }
 
     /**
-     * Spawns 3 animated particle dots per edge path that travel along the cubic bezier.
+     * Spawns 3 animated particle dots for a single edge path.
+     * @param {Object} obj - pathObj with path element and edge data
      */
-    function spawnParticles() {
+    function spawnParticlesForEdge(obj) {
       const particleSvg = document.getElementById('particles');
+      const colorVar = obj.edge.color === 'primary' ? '#6366f1' :
+                       obj.edge.color === 'secondary' ? '#06b6d4' :
+                       obj.edge.color === 'async' ? '#f59e0b' :
+                       '#ef4444';
 
-      pathObjs.forEach((obj, ei) => {
-        const colorVar = obj.edge.color === 'primary' ? '#6366f1' :
-                         obj.edge.color === 'secondary' ? '#06b6d4' :
-                         obj.edge.color === 'async' ? '#f59e0b' :
-                         '#ef4444';
+      for (let p = 0; p < 3; p++) {
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('r', '3');
+        circle.setAttribute('fill', colorVar);
+        circle.style.filter = `drop-shadow(0 0 4px ${colorVar})`;
+        circle.style.opacity = '0';
+        particleSvg.appendChild(circle);
 
-        for (let p = 0; p < 3; p++) {
-          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-          circle.setAttribute('r', '3');
-          circle.setAttribute('fill', colorVar);
-          circle.style.filter = `drop-shadow(0 0 4px ${colorVar})`;
-          circle.style.opacity = '0';
-          particleSvg.appendChild(circle);
-
-          animateParticle(circle, obj.path, p * 1200);
-        }
-      });
+        animateParticle(circle, obj.path, p * 1200);
+      }
     }
 
     /**
@@ -1049,12 +1050,40 @@
       });
 
       const data = nodeMap[nodeId];
-      tooltip.innerHTML = `
-        <div class="tooltip-title">${data.label}</div>
-        <div class="tooltip-row"><span>Tech</span><span>${data.tech}</span></div>
-        <div class="tooltip-row"><span>Port</span><span>${data.port}</span></div>
-        <div style="margin-top:8px;color:var(--node-sub);font-size:11px;line-height:1.4;">${data.desc}</div>
-      `;
+
+      /* Outgoing edges: this node sends requests */
+      const outgoing = edges.filter(e => e.from === nodeId);
+      /* Incoming edges: this node responds */
+      const incoming = edges.filter(e => e.to === nodeId);
+
+      let html = `<div class="tooltip-title">${data.label}</div>`;
+      html += `<div style="color:var(--node-sub);font-size:11px;margin-bottom:8px;">${data.subtitle}</div>`;
+
+      if (outgoing.length) {
+        html += `<div class="tooltip-data-label" style="margin-bottom:4px;">Sends</div>`;
+        outgoing.forEach(e => {
+          const cls = 'tooltip-method--' + (e.method || '').toLowerCase();
+          html += `<div style="margin-bottom:6px;">
+            <span class="tooltip-method ${cls}">${e.method || e.type}</span>
+            <span class="tooltip-endpoint">${e.endpoint || e.label}</span>
+            <div class="tooltip-data-value" style="margin-top:2px;">${e.request || ''}</div>
+          </div>`;
+        });
+      }
+
+      if (incoming.length) {
+        html += `<div class="tooltip-data-label" style="margin-top:6px;margin-bottom:4px;">Responds</div>`;
+        incoming.forEach(e => {
+          const cls = 'tooltip-method--' + (e.method || '').toLowerCase();
+          html += `<div style="margin-bottom:6px;">
+            <span class="tooltip-method ${cls}">${e.method || e.type}</span>
+            <span class="tooltip-endpoint">${e.endpoint || e.label}</span>
+            <div class="tooltip-data-value tooltip-data-response" style="margin-top:2px;">${e.response || ''}</div>
+          </div>`;
+        });
+      }
+
+      tooltip.innerHTML = html;
       tooltip.classList.add('is-active');
     }
 
@@ -1149,7 +1178,7 @@
         }
       });
 
-      return closest && closest.dist < EDGE_HIT_DISTANCE / scale ? closest : null;
+      return closest && closest.dist < EDGE_HIT_DISTANCE ? closest : null;
     }
 
     document.addEventListener('mousemove', (e) => {

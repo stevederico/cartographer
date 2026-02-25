@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1
+
+  Fix invisible horizontal edge via bezier nudge
+  Widen glow filter region for edge visibility
+  Rename skill to cartographer
+  Enrich node tooltips with request/response data
+  Spawn particles per-edge after draw completes
+
 ## 1.1.0
 
   Fit diagram to viewport dynamically
