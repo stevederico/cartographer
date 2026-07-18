@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1
+
+  Link skills.sh in README
+
 ## 1.3.0
 
   Add cartographer-docs skill

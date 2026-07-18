@@ -4,7 +4,14 @@
 
 # Cartographer
 
+[![skills.sh](https://skills.sh/b/stevederico/cartographer)](https://skills.sh/stevederico/cartographer)
+
 Animated software architecture diagrams as self-contained HTML files. An [agent skill](https://skills.sh) that generates dark neon glassmorphic diagrams with zero external dependencies — all CSS, JS, and SVG inline in a single `.html` file.
+
+| Skill | skills.sh | Install |
+|---|---|---|
+| `/cartographer` | [stevederico/cartographer/cartographer](https://skills.sh/stevederico/cartographer/cartographer) | `npx skills add stevederico/cartographer` |
+| `/cartographer-docs` | [stevederico/cartographer/cartographer-docs](https://skills.sh/stevederico/cartographer/cartographer-docs) | same package |
 
 ## Example
 
