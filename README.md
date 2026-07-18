@@ -15,14 +15,16 @@ Animated software architecture diagrams as self-contained HTML files. An [agent 
 ## Quick Start
 
 ```bash
-# Install the skill
+# Install both skills (diagrams + text deep-dives)
 npx skills add stevederico/cartographer
 
-# Generate a diagram from a description
+# Diagrams — /cartographer
 "draw an architecture diagram for a web app with an API, database, and cache"
-
-# Generate from your codebase
 "diagram this system from codebase"
+
+# Text deep-dives — /cartographer-docs
+"explain the architecture"
+"/cartographer-docs audio"
 ```
 
 ## Features
@@ -100,17 +102,27 @@ Every generated diagram includes:
 | **Zoom / Pan** | Mouse wheel zooms toward cursor, click-drag pans |
 | **Double-click reset** | Resets zoom and centers the diagram |
 
+## Skills
+
+| Slash command | What |
+|---|---|
+| `/cartographer` | Animated HTML architecture diagrams |
+| `/cartographer-docs` | Text architecture deep-dives (markdown + file:line) |
+
 ## File Structure
 
 ```
 cartographer/
-├── SKILL.md                          # Skill definition (install target)
+├── SKILL.md                              # /cartographer (diagrams)
+├── skills/
+│   └── cartographer-docs/
+│       └── SKILL.md                      # /cartographer-docs (text deep-dives)
 ├── references/
-│   ├── design-system.md              # CSS palette, node shapes, animations
-│   ├── icons.md                      # 20 Lucide-style SVG icons
-│   └── layout-algorithm.md           # Auto-layout algorithm reference
+│   ├── design-system.md                  # CSS palette, node shapes, animations
+│   ├── icons.md                          # 20 Lucide-style SVG icons
+│   └── layout-algorithm.md               # Auto-layout algorithm reference
 └── examples/
-    └── example-microservices.html    # Working demo — open in browser
+    └── example-microservices.html        # Working demo — open in browser
 ```
 
 ## Icon Library

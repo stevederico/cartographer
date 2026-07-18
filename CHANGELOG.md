@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0
+
+  Add cartographer-docs skill
+  Text architecture deep-dives
+
 ## 1.2.1
 
   Remove particle drop-shadow filter

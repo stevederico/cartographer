@@ -8,7 +8,7 @@ description: >
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch
 metadata:
   author: cartographer
-  version: "1.2.1"
+  version: "1.3.0"
   argument-hint: <description or "from codebase">
 ---
 
