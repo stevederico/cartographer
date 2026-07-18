@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.0
+
+  Merge cartographer-docs into cartographer
+  Auto mode selection
+
 ## 1.3.1
 
   Link skills.sh in README

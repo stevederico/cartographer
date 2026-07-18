@@ -6,12 +6,11 @@
 
 [![skills.sh](https://skills.sh/b/stevederico/cartographer)](https://skills.sh/stevederico/cartographer)
 
-Animated software architecture diagrams as self-contained HTML files. An [agent skill](https://skills.sh) that generates dark neon glassmorphic diagrams with zero external dependencies — all CSS, JS, and SVG inline in a single `.html` file.
+One agent skill for architecture: **diagram** mode (animated HTML) and **docs** mode (text deep-dives). Install once; mode is explicit (`diagram` / `docs`) or **chosen automatically** from your wording.
 
-| Skill | skills.sh | Install |
+| | skills.sh | Install |
 |---|---|---|
 | `/cartographer` | [stevederico/cartographer/cartographer](https://skills.sh/stevederico/cartographer/cartographer) | `npx skills add stevederico/cartographer` |
-| `/cartographer-docs` | [stevederico/cartographer/cartographer-docs](https://skills.sh/stevederico/cartographer/cartographer-docs) | same package |
 
 ## Example
 
@@ -22,20 +21,29 @@ Animated software architecture diagrams as self-contained HTML files. An [agent 
 ## Quick Start
 
 ```bash
-# Install both skills (diagrams + text deep-dives)
 npx skills add stevederico/cartographer
 
-# Diagrams — /cartographer
+# Diagram mode (or auto when you say draw/diagram/map)
 "draw an architecture diagram for a web app with an API, database, and cache"
-"diagram this system from codebase"
+"/cartographer diagram from codebase"
 
-# Text deep-dives — /cartographer-docs
+# Docs mode (or auto when you say explain/how does/deep dive)
 "explain the architecture"
-"/cartographer-docs audio"
+"/cartographer docs audio"
 ```
+
+### Modes
+
+| Mode | Output | Auto when… |
+|---|---|---|
+| **diagram** | Self-contained animated HTML | draw, diagram, visualize, map the services |
+| **docs** | Markdown + file:line | explain, how does, deep dive, walk me through |
+
+Ambiguous prompts default to **docs** (cheaper); say “diagram” if you want a visual.
 
 ## Features
 
+- **Two modes** — visual diagrams + text architecture deep-dives in one skill
 - **Self-contained HTML** — single file, zero CDN links, zero dependencies
 - **Dark neon glass aesthetic** — glassmorphic nodes, glowing edges, dot-grid background
 - **Animated particles** — flowing dots along edges show data direction
