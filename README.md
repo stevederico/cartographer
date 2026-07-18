@@ -117,24 +117,23 @@ Every generated diagram includes:
 | **Zoom / Pan** | Mouse wheel zooms toward cursor, click-drag pans |
 | **Double-click reset** | Resets zoom and centers the diagram |
 
-## Skills
+## Skill
 
 | Slash command | What |
 |---|---|
-| `/cartographer` | Animated HTML architecture diagrams |
-| `/cartographer-docs` | Text architecture deep-dives (markdown + file:line) |
+| `/cartographer` | **diagram** or **docs** mode (auto if omitted) |
+| `/cartographer diagram …` | Animated HTML architecture diagrams |
+| `/cartographer docs …` | Text architecture deep-dives (markdown + file:line) |
 
 ## File Structure
 
 ```
 cartographer/
 ├── skills/
-│   ├── cartographer/
-│   │   ├── SKILL.md                      # /cartographer (diagrams)
-│   │   ├── references/                   # design-system, icons, layout-algorithm
-│   │   └── examples/                     # example-microservices.html
-│   └── cartographer-docs/
-│       └── SKILL.md                      # /cartographer-docs (text deep-dives)
+│   └── cartographer/
+│       ├── SKILL.md                      # /cartographer (diagram + docs modes)
+│       ├── references/                   # design-system, icons, layout-algorithm
+│       └── examples/                     # example-microservices.html
 ├── README.md
 └── CHANGELOG.md
 ```
