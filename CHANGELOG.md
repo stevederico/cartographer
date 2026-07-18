@@ -4,6 +4,8 @@
 
   Add cartographer-docs skill
   Text architecture deep-dives
+  Move diagram skill under skills/
+  Multi-skill discovery
 
 ## 1.2.1
 

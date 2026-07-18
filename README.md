@@ -113,16 +113,15 @@ Every generated diagram includes:
 
 ```
 cartographer/
-├── SKILL.md                              # /cartographer (diagrams)
 ├── skills/
+│   ├── cartographer/
+│   │   ├── SKILL.md                      # /cartographer (diagrams)
+│   │   ├── references/                   # design-system, icons, layout-algorithm
+│   │   └── examples/                     # example-microservices.html
 │   └── cartographer-docs/
 │       └── SKILL.md                      # /cartographer-docs (text deep-dives)
-├── references/
-│   ├── design-system.md                  # CSS palette, node shapes, animations
-│   ├── icons.md                          # 20 Lucide-style SVG icons
-│   └── layout-algorithm.md               # Auto-layout algorithm reference
-└── examples/
-    └── example-microservices.html        # Working demo — open in browser
+├── README.md
+└── CHANGELOG.md
 ```
 
 ## Icon Library
