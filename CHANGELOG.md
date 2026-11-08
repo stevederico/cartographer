@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.1
+
+  Fix changelog order
+
+## 1.5.0
+
+  Add MIT license
+
 ## 1.4.0
 
   Merge cartographer-docs into cartographer
@@ -61,7 +69,3 @@
   Design system, icons, layout algorithm references
   Microservices example diagram
   README with docs and quick start
-1.5.0
-
-  Add MIT license
-
