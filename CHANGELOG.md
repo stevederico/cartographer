@@ -61,3 +61,7 @@
   Design system, icons, layout algorithm references
   Microservices example diagram
   README with docs and quick start
+1.5.0
+
+  Add MIT license
+
